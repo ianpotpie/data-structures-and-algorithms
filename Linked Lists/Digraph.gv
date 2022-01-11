@@ -1,0 +1,15 @@
+digraph {
+	graph [rankdir=LR]
+	0 [label="[HEAD]" shape=plaintext]
+	1 [label=a shape=box]
+	0 -> 1
+	2 [label=b shape=box]
+	1 -> 2
+	3 [label=d shape=box]
+	2 -> 3
+	4 [label=None shape=plaintext]
+	3 -> 4
+	a [label=c shape=circle]
+	c [label=c shape=box]
+	c -> 3
+}
