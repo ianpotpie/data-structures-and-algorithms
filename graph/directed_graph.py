@@ -8,7 +8,8 @@ DiGraphType.Edge = TypeVar("Edge", bound="DiGraph.Edge")  # TODO: remove in futu
 
 class DiGraph:
     """
-    This is a simple implementation of the digraph data structure using only python
+    This is a simple implementation of the digraph data structure using only the python standard library.
+    The string representations are based on the DOT file format.
     """
 
     def __init__(self, **kwargs):
@@ -34,7 +35,7 @@ class DiGraph:
         """
         Creates a list of all nodes in the digraph.
 
-        :return: a set of digraph nodes
+        :return: a list of the node in the digraph
         """
         return list(self.nodes)
 
@@ -42,7 +43,7 @@ class DiGraph:
         """
         Creates a list of all edges in the digraph.
 
-        :return: a set of digraph edges
+        :return: a list of the edges in the digraph
         """
         return list(self.edges)
 
@@ -61,8 +62,8 @@ class DiGraph:
         """
         Creates a new edge in the digraph between two existing nodes.
 
-        :param tail: the starting/tail node
-        :param head: the ending/head node
+        :param tail: the start/tail node
+        :param head: the end/head node
         :param kwargs: keyword attributes of the new edge
         :return: the new edge
         """
@@ -78,7 +79,7 @@ class DiGraph:
 
     def remove_node(self, node: DiGraphType.Node) -> None:
         """
-        Removes the node and all connected edges from the digraph.
+        Removes an existing node and all connected edges from the digraph.
 
         :param node: the node to remove
         :return: None
@@ -123,7 +124,7 @@ class DiGraph:
             """
             Creates a list of all incoming edges in from the node.
 
-            :return: a list of edges
+            :return: a list of incoming edges
             """
             return list(self.incoming_edges)
 
@@ -131,39 +132,52 @@ class DiGraph:
             """
             Creates a list of all outgoing edges in from the node.
 
-            :return: a list of edges
+            :return: a list of outgoing edges
             """
             return list(self.outgoing_edges)
 
         def get_edges(self) -> list[DiGraphType.Edge]:
             """
-            Creates a shallow copy of the set of edges.
+            Creates a list of all edge connect (incoming or outgoing) to the node.
 
-            :return: the edges connected to the node
+            :return: the list of edges connected to the node
             """
             return list(self.incoming_edges | self.outgoing_edges)
 
-        def get_destinations(self) -> list[DiGraphType.Node]:
+        def get_children(self) -> list[DiGraphType.Node]:
             """
-            Creates a list of destination nodes by iterating over the edges of the node.
+            Creates a list of all nodes connected to the current node via outgoing edges.
 
-            :return: a set of the node's neighbors
+            :return: a list of the node's children/destinations
             """
-            destinations = set()
+            children = set()
             for edge in self.outgoing_edges:
-                destinations.add(edge.head)
-            return list(destinations)
+                children.add(edge.head)
+            return list(children)
 
-        def get_sources(self) -> list[DiGraphType.Node]:
+        def get_parents(self) -> list[DiGraphType.Node]:
             """
-            Creates a list of source nodes by iterating over the edges of the node.
+            Creates a list of all nodes connected to the current node via incoming edges.
 
-            :return: a set of the node's neighbors
+            :return: a list of the node's parents/sources
             """
-            sources = set()
+            parents = set()
             for edge in self.incoming_edges:
-                sources.add(edge.tail)
-            return list(sources)
+                parents.add(edge.tail)
+            return list(parents)
+
+        def get_neighbors(self) -> list[DiGraphType.Node]:
+            """
+            Creates a list of all nodes connected to the current node via incoming or outgoing edges.
+
+            :return: a list of the node's neighbors
+            """
+            neighbors = set()
+            for edge in self.incoming_edges:
+                neighbors.add(edge.tail)
+            for edge in self.outgoing_edges:
+                neighbors.add(edge.head)
+            return list(neighbors)
 
     class Edge:
         def __init__(self, tail: DiGraphType.Node, head: DiGraphType.Node, **kwargs):
