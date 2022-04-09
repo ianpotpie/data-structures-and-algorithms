@@ -1,7 +1,5 @@
 import argparse
 from typing import TypeVar
-import graphviz
-import pydot
 
 DiGraphType = TypeVar("DiGraphType", bound="DiGraph")  # TODO: remove in future update
 DiGraphType.Node = TypeVar("Node", bound="DiGraph.Node")  # TODO: remove in future update
@@ -9,6 +7,10 @@ DiGraphType.Edge = TypeVar("Edge", bound="DiGraph.Edge")  # TODO: remove in futu
 
 
 class DiGraph:
+    """
+    This is a simple implementation of the digraph data structure using only python
+    """
+
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
         self.nodes: set[DiGraphType.Node] = set()
@@ -64,8 +66,10 @@ class DiGraph:
         :param kwargs: keyword attributes of the new edge
         :return: the new edge
         """
-        assert tail in self.nodes
-        assert head in self.nodes
+        if tail not in self.nodes:
+            raise ValueError("tail is not in the current graph")
+        if head not in self.nodes:
+            raise ValueError("head is not in the current graph")
         new_edge = DiGraph.Edge(tail, head, **kwargs)
         tail.edges.add(new_edge)
         head.edges.add(new_edge)
@@ -79,7 +83,8 @@ class DiGraph:
         :param node: the node to remove
         :return: None
         """
-        assert node in self.nodes
+        if node not in self.nodes:
+            raise ValueError("node is not in the current graph")
         for edge in node.get_edges():
             self.remove_edge(edge)
         self.nodes.remove(node)
@@ -91,7 +96,8 @@ class DiGraph:
         :param edge: the edge to be removed
         :return: None
         """
-        assert edge in self.edges
+        if edge not in self.edges:
+            raise ValueError("edge is not in the current graph")
         edge.tail.outgoing_edges.remove(edge)
         edge.head.incoming_edges.remove(edge)
         self.edges.remove(edge)
@@ -113,16 +119,21 @@ class DiGraph:
                 s += f" [label={self.label}]"
             return s
 
-        def get_neighbors(self) -> set[DiGraphType.Node]:
+        def get_incoming_edges(self) -> list[DiGraphType.Edge]:
             """
-            Creates a set of neighbors by iterating over the edges of the node.
+            Creates a list of all incoming edges in from the node.
 
-            :return: a set of the node's neighbors
+            :return: a list of edges
             """
-            neighbors = set()
-            for edge in self.outgoing_edges:
-                neighbors.add(edge.head)
-            return neighbors
+            return list(self.incoming_edges)
+
+        def get_outgoing_edges(self) -> list[DiGraphType.Edge]:
+            """
+            Creates a list of all outgoing edges in from the node.
+
+            :return: a list of edges
+            """
+            return list(self.outgoing_edges)
 
         def get_edges(self) -> list[DiGraphType.Edge]:
             """
@@ -131,6 +142,28 @@ class DiGraph:
             :return: the edges connected to the node
             """
             return list(self.incoming_edges | self.outgoing_edges)
+
+        def get_destinations(self) -> list[DiGraphType.Node]:
+            """
+            Creates a list of destination nodes by iterating over the edges of the node.
+
+            :return: a set of the node's neighbors
+            """
+            destinations = set()
+            for edge in self.outgoing_edges:
+                destinations.add(edge.head)
+            return list(destinations)
+
+        def get_sources(self) -> list[DiGraphType.Node]:
+            """
+            Creates a list of source nodes by iterating over the edges of the node.
+
+            :return: a set of the node's neighbors
+            """
+            sources = set()
+            for edge in self.incoming_edges:
+                sources.add(edge.tail)
+            return list(sources)
 
     class Edge:
         def __init__(self, tail: DiGraphType.Node, head: DiGraphType.Node, **kwargs):
@@ -148,44 +181,6 @@ class DiGraph:
             if hasattr(self, "label"):
                 s += f" [label={self.label}]"
             return s
-
-
-def visualize_digraph(graph: DiGraphType) -> None:
-    """
-    Render and view the current digraph with graphviz.
-
-    :return: None
-    """
-    vis_digraph = graphviz.Digraph()
-    for node in graph.nodes:
-        label = node.label if hasattr(node, "label") else None
-        vis_digraph.node(name=str(id(node)), label=label)
-    for edge in graph.edges:
-        label = edge.label if hasattr(edge, "label") else None
-        vis_digraph.edge(tail_name=str(id(edge.tail)), head_name=str(id(edge.head)), label=label)
-    vis_digraph.view()
-
-
-def load_digraph_from_file(file: str) -> DiGraphType:
-    """
-    Builds a new digraph from the contents of a file (dot format).
-
-    :param file: the path to the file
-    :return: a digraph
-    """
-    new_digraph = DiGraph()
-    graph = pydot.graph_from_dot_file(file)[0]
-
-    node_dict = {}
-    for node in graph.get_nodes():
-        node_dict[node.get_name()] = new_digraph.new_node(name=node.get_name(), **node.get_attributes())
-
-    for edge in graph.get_edges():
-        tail_name = edge.get_source()
-        head_name = edge.get_destination()
-        new_digraph.new_edge(node_dict[tail_name], node_dict[head_name], **edge.get_attributes())
-
-    return new_digraph
 
 
 def main():
@@ -284,14 +279,12 @@ def main():
         elif argv[0] == "print":
             print(digraph)
 
-        elif argv[0] == "view":
-            visualize_digraph(digraph)
-
+        # TODO: this needs to be implemented
         elif argv[0] == "load":
             if len(argv) < 2:
                 print("must provide file containing digraph")
             else:
-                digraph = load_digraph_from_file(argv[1])
+                digraph = DiGraph()
                 nodes_by_name = {str(id(node)): node for node in digraph.get_nodes()}
                 edges_by_name = {str(id(edge)): edge for edge in digraph.get_edges()}
 
