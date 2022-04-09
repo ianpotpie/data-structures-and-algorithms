@@ -1,8 +1,0 @@
-graph {
-	A [label=A]
-	C [label=C]
-	E [label=E]
-	B [label=B]
-	D [label=D]
-	A -- C [label=edge1]
-}
