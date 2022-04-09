@@ -1,7 +1,5 @@
 import argparse
 from typing import TypeVar
-import graphviz
-import pydot
 
 GraphType = TypeVar("GraphType", bound="Graph")  # TODO: remove in future update
 GraphType.Node = TypeVar("Node", bound="Graph.Node")  # TODO: remove in future update
@@ -9,6 +7,13 @@ GraphType.Edge = TypeVar("Edge", bound="Graph.Edge")  # TODO: remove in future u
 
 
 class Graph:
+    """
+    This is a simple implementation of the graph data structure using only the python standard library.
+    The string representations are based on the DOT file format.
+
+    Note that "name" and "label" are reserved attributes for the string representation of the graph.
+    """
+
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
         self.nodes: set[GraphType.Node] = set()
@@ -64,8 +69,10 @@ class Graph:
         :param kwargs: keyword attributes of the new edge
         :return: the new edge
         """
-        assert tail in self.nodes
-        assert head in self.nodes
+        if tail not in self.nodes:
+            raise ValueError("tail is not in the current graph")
+        if head not in self.nodes:
+            raise ValueError("head is not in the current graph")
         new_edge = Graph.Edge(tail, head, **kwargs)
         tail.edges.add(new_edge)
         head.edges.add(new_edge)
@@ -79,7 +86,8 @@ class Graph:
         :param node: the node to remove
         :return: None
         """
-        assert node in self.nodes
+        if node not in self.nodes:
+            raise ValueError("node is not in the current graph")
         for edge in node.get_edges():
             self.remove_edge(edge)
         self.nodes.remove(node)
@@ -91,7 +99,8 @@ class Graph:
         :param edge: the edge to be removed
         :return: None
         """
-        assert edge in self.edges
+        if edge not in self.edges:
+            raise ValueError("edge is not in the current graph")
         edge.tail.edges.remove(edge)
         if edge.head is not edge.tail:
             edge.head.edges.remove(edge)
@@ -108,12 +117,20 @@ class Graph:
 
             :return: a string representation of the node
             """
-            s = f"{str(id(self))}"
+            s = self.name if hasattr(self, "name") else str(id(self))
             if hasattr(self, "label"):
                 s += f" [label={self.label}]"
             return s
 
-        def get_neighbors(self) -> set[GraphType.Node]:
+        def get_edges(self) -> list[GraphType.Edge]:
+            """
+            Creates a shallow copy of the set of edges.
+
+            :return: the edges connected to the node
+            """
+            return list(self.edges)
+
+        def get_neighbors(self) -> list[GraphType.Node]:
             """
             Creates a set of neighbors by iterating over the edges of the node.
 
@@ -125,15 +142,7 @@ class Graph:
                     neighbors.add(edge.head)
                 else:
                     neighbors.add(edge.tail)
-            return neighbors
-
-        def get_edges(self) -> set[GraphType.Edge]:
-            """
-            Creates a shallow copy of the set of edges.
-
-            :return: the edges connected to the node
-            """
-            return self.edges.copy()
+            return list(neighbors)
 
     class Edge:
         def __init__(self, tail: GraphType.Node, head: GraphType.Node, **kwargs):
@@ -147,48 +156,12 @@ class Graph:
 
             :return: a string representation of the edge
             """
-            s = f"{str(id(self.tail))} -- {str(id(self.head))}"
+            tail_name = self.tail.name if hasattr(self.tail, "name") else str(id(self.tail))
+            head_name = self.head.name if hasattr(self.head, "name") else str(id(self.head))
+            s = f"{tail_name} -- {head_name}"
             if hasattr(self, "label"):
                 s += f" [label={self.label}]"
             return s
-
-
-def visualize_graph(graph: GraphType) -> None:
-    """
-    Render and view the current graph with graphviz.
-
-    :return: None
-    """
-    vis_graph = graphviz.Graph()
-    for node in graph.nodes:
-        label = node.label if hasattr(node, "label") else None
-        vis_graph.node(name=str(id(node)), label=label)
-    for edge in graph.edges:
-        label = edge.label if hasattr(edge, "label") else None
-        vis_graph.edge(tail_name=str(id(edge.tail)), head_name=str(id(edge.head)), label=label)
-    vis_graph.view()
-
-
-def load_graph_from_file(file: str) -> GraphType:
-    """
-    Builds a new graph from the contents of a file (dot format).
-
-    :param file: the path to the file
-    :return: a graph
-    """
-    new_graph = Graph()
-    graph = pydot.graph_from_dot_file(file)[0]
-
-    node_dict = {}
-    for node in graph.get_nodes():
-        node_dict[node.get_name()] = new_graph.new_node(name=node.get_name(), **node.get_attributes())
-
-    for edge in graph.get_edges():
-        tail_name = edge.get_source()
-        head_name = edge.get_destination()
-        new_graph.new_edge(node_dict[tail_name], node_dict[head_name], **edge.get_attributes())
-
-    return new_graph
 
 
 def main():
@@ -211,10 +184,9 @@ def main():
     print("6. edge-dict")
     print("7. reset-graph")
     print("8. print-graph")
-    print("9. view")
-    print("10. load [filepath]")
-    print("11. save [filepath]")
-    print("12. exit")
+    print("9. load [filepath]")
+    print("10. save [filepath]")
+    print("11. exit")
     print("-------------------")
 
     while True:
@@ -287,16 +259,14 @@ def main():
         elif argv[0] == "print":
             print(graph)
 
-        elif argv[0] == "view":
-            visualize_graph(graph)
-
+        # TODO: this needs to be implemented
         elif argv[0] == "load":
             if len(argv) < 2:
                 print("must provide file containing graph")
             else:
-                graph = load_graph_from_file(argv[1])
-                nodes_by_name = {str(id(node)): node for node in graph.get_nodes()}
-                edges_by_name = {str(id(edge)): edge for edge in graph.get_edges()}
+                graph = Graph()
+                nodes_by_name = {}
+                edges_by_name = {}
 
         elif argv[0] == "save":
             file = argv[1]
