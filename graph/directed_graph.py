@@ -1,6 +1,11 @@
-from typing import TypeVar, Union, Iterator
+import argparse
+from typing import TypeVar
+import graphviz
+import pydot
 
 DiGraphType = TypeVar("DiGraphType", bound="DiGraph")  # TODO: remove in future update
+DiGraphType.Node = TypeVar("Node", bound="DiGraph.Node")  # TODO: remove in future update
+DiGraphType.Edge = TypeVar("Edge", bound="DiGraph.Edge")  # TODO: remove in future update
 
 
 class DiGraph:
@@ -17,56 +22,27 @@ class DiGraph:
         """
         s = "digraph {\n"
         for node in self.nodes:
-            s += f"\t{node}\n"
-        for edge in self.get_edges():
-            s += f"\t{edge}\n"
+            s += f"\t{node};\n"
+        for edge in self.edges:
+            s += f"\t{edge};\n"
         s += "}"
         return s
 
-    def __len__(self) -> len:
+    def get_nodes(self) -> list[DiGraphType.Node]:
         """
-        Counts the number of nodes in the digraph
-
-        :return: the number of nodes in the digraph
-        """
-        return len(self.nodes)
-
-    def __contains__(self, item: Union[DiGraphType.Node, DiGraphType.Edge]) -> bool:
-        """
-        Checks whether the digraph contains a node or edge.
-
-        :param item: a node or edge
-        :return: a bool indicating whether the item is in the digraph
-        """
-        if isinstance(item, DiGraphType.Node):
-            return item in self.nodes
-        if isinstance(item, DiGraphType.Edge):
-            return item in self.edges
-        raise TypeError("Item must be node or edge.")
-
-    def __iter__(self) -> Iterator[DiGraphType.Node]:
-        """
-        Creates an iterator over the nodes of the digraph.
-
-        :return: a node iterator
-        """
-        return iter(self.nodes)
-
-    def get_nodes(self) -> set[DiGraphType.Node]:
-        """
-        Creates a set of all nodes in the digraph.
+        Creates a list of all nodes in the digraph.
 
         :return: a set of digraph nodes
         """
-        return self.nodes.copy()
+        return list(self.nodes)
 
-    def get_edges(self) -> set[DiGraphType.Edge]:
+    def get_edges(self) -> list[DiGraphType.Edge]:
         """
-        Creates a set of all edges in the digraph.
+        Creates a list of all edges in the digraph.
 
         :return: a set of digraph edges
         """
-        return self.edges.copy()
+        return list(self.edges)
 
     def new_node(self, **kwargs) -> DiGraphType.Node:
         """
@@ -75,7 +51,7 @@ class DiGraph:
         :param kwargs: keyword attributes of the node
         :return: the new node
         """
-        new_node = DiGraphType.Node(**kwargs)
+        new_node = DiGraph.Node(**kwargs)
         self.nodes.add(new_node)
         return new_node
 
@@ -91,8 +67,8 @@ class DiGraph:
         assert tail in self.nodes
         assert head in self.nodes
         new_edge = DiGraph.Edge(tail, head, **kwargs)
-        tail.outgoing_edges.add(new_edge)
-        head.incoming_edges.add(new_edge)
+        tail.edges.add(new_edge)
+        head.edges.add(new_edge)
         self.edges.add(new_edge)
         return new_edge
 
@@ -120,19 +96,6 @@ class DiGraph:
         edge.head.incoming_edges.remove(edge)
         self.edges.remove(edge)
 
-    def adjacent(self, x: DiGraphType.Node, y: DiGraphType.Node) -> bool:
-        """
-        Checks whether two nodes in the digraph are adjacent.
-
-        :param x: a node in the digraph
-        :param y: a node in the digraph
-        :return: a boolean indicating whether the two nodes are adjacent.
-        """
-        assert x in self.nodes
-        assert y in self.nodes
-        is_adjacent = y in x.get_neighbors()
-        return is_adjacent
-
     class Node:
         def __init__(self, **kwargs):
             self.__dict__.update(kwargs)
@@ -145,7 +108,7 @@ class DiGraph:
 
             :return: a string representation of the node
             """
-            s = f"{id(self)}"
+            s = f"{str(id(self))}"
             if hasattr(self, "label"):
                 s += f" [label={self.label}]"
             return s
@@ -161,29 +124,13 @@ class DiGraph:
                 neighbors.add(edge.head)
             return neighbors
 
-        def get_edges(self) -> set[DiGraphType.Edge]:
+        def get_edges(self) -> list[DiGraphType.Edge]:
             """
             Creates a shallow copy of the set of edges.
 
             :return: the edges connected to the node
             """
-            return self.incoming_edges | self.outgoing_edges
-
-        def get_incoming_edges(self) -> set[DiGraphType.Edge]:
-            """
-            Creates a shallow copy of the incoming set of edges.
-
-            :return: the incoming edges of the node
-            """
-            return self.incoming_edges.copy()
-
-        def get_outgoing_edges(self) -> set[DiGraphType.Edge]:
-            """
-            Creates a shallow copy of the outgoing set of edges.
-
-            :return: the outgoing edges of the node
-            """
-            return self.outgoing_edges.copy()
+            return list(self.incoming_edges | self.outgoing_edges)
 
     class Edge:
         def __init__(self, tail: DiGraphType.Node, head: DiGraphType.Node, **kwargs):
@@ -197,7 +144,169 @@ class DiGraph:
 
             :return: a string representation of the edge
             """
-            s = f"{self.tail} -> {self.head}"
+            s = f"{str(id(self.tail))} -> {str(id(self.head))}"
             if hasattr(self, "label"):
                 s += f" [label={self.label}]"
             return s
+
+
+def visualize_digraph(graph: DiGraphType) -> None:
+    """
+    Render and view the current digraph with graphviz.
+
+    :return: None
+    """
+    vis_digraph = graphviz.Digraph()
+    for node in graph.nodes:
+        label = node.label if hasattr(node, "label") else None
+        vis_digraph.node(name=str(id(node)), label=label)
+    for edge in graph.edges:
+        label = edge.label if hasattr(edge, "label") else None
+        vis_digraph.edge(tail_name=str(id(edge.tail)), head_name=str(id(edge.head)), label=label)
+    vis_digraph.view()
+
+
+def load_digraph_from_file(file: str) -> DiGraphType:
+    """
+    Builds a new digraph from the contents of a file (dot format).
+
+    :param file: the path to the file
+    :return: a digraph
+    """
+    new_digraph = DiGraph()
+    graph = pydot.graph_from_dot_file(file)[0]
+
+    node_dict = {}
+    for node in graph.get_nodes():
+        node_dict[node.get_name()] = new_digraph.new_node(name=node.get_name(), **node.get_attributes())
+
+    for edge in graph.get_edges():
+        tail_name = edge.get_source()
+        head_name = edge.get_destination()
+        new_digraph.new_edge(node_dict[tail_name], node_dict[head_name], **edge.get_attributes())
+
+    return new_digraph
+
+
+def main():
+    digraph = DiGraph()
+    nodes_by_name = {}
+    edges_by_name = {}
+
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("-l", "--label")
+    parser.add_argument("-n", "--name")
+
+    print("~DiGraph Builder REPL~")
+    print("-------------------")
+    print("Commands:")
+    print("1. add-node [-n, --name] [-l, --label]")
+    print("2. add-edge [-n, --name] [-l, --label]")
+    print("3. del-node [name]")
+    print("4. del-edge [name]")
+    print("5. node-dict")
+    print("6. edge-dict")
+    print("7. reset-graph")
+    print("8. print-graph")
+    print("9. view")
+    print("10. load [filepath]")
+    print("11. save [filepath]")
+    print("12. exit")
+    print("-------------------")
+
+    while True:
+        argv = input("> ").split()
+        if argv[0] == "add-node":
+            namespace, argv = parser.parse_known_args(argv[1:])
+            if namespace.name in nodes_by_name:
+                print(f"a node with the name \"{namespace.name}\" already exists")
+            else:
+                print(argv)
+                new_node = digraph.new_node()
+                name = argv.pop(0) if (namespace.name is None and len(argv) > 0) else namespace.name
+                new_node.name = str(id(new_node)) if name is None else name
+                label = argv.pop(0) if (namespace.label is None and len(argv) > 0) else namespace.label
+                if label is not None:
+                    new_node.label = label
+                nodes_by_name[new_node.name] = new_node
+
+        elif argv[0] == "del-node":
+            if len(argv) < 2:
+                print("must provide the name of the node to remove")
+            else:
+                node = nodes_by_name[argv[1]]
+                del nodes_by_name[argv[1]]
+                for edge in node.get_edges():
+                    if hasattr(edge, "name"):
+                        if edge.name in edges_by_name:
+                            del edges_by_name[edge.name]
+                digraph.remove_node(node)
+
+        elif argv[0] == "add-edge":
+            namespace, argv = parser.parse_known_args(argv[1:])
+            if len(argv) < 2:
+                print("must provide two nodes, a tail and a head")
+            elif argv[1] not in nodes_by_name:
+                print(f"{argv[1]} is not a node in the digraph")
+            elif argv[2] not in nodes_by_name:
+                print(f"{argv[2]} is not a node in the digraph")
+            elif namespace.name in edges_by_name:
+                print(f"an edge with the name \"{namespace.name}\" already exists")
+            else:
+                tail = nodes_by_name[argv[1]]
+                head = nodes_by_name[argv[2]]
+                new_edge = digraph.new_edge(tail, head)
+                new_edge.name = str(id(new_edge)) if namespace.name is None else namespace.name
+                if namespace.label is not None:
+                    new_edge.label = namespace.label
+                edges_by_name[new_edge.name] = new_edge
+
+        elif argv[0] == "del-edge":
+            if len(argv) < 2:
+                print("must provide the name of the edge to remove")
+            else:
+                edge = edges_by_name[argv[1]]
+                digraph.remove_edge(edge)
+
+        elif argv[0] == "node-dict":
+            for name, node in nodes_by_name.items():
+                print(f"{name} : {node}")
+
+        elif argv[0] == "edge-dict":
+            for name, edge in edges_by_name.items():
+                print(f"{name} : {edge}")
+
+        elif argv[0] == "reset":
+            digraph = DiGraph()
+            nodes_by_name = {}
+            edges_by_name = {}
+
+        elif argv[0] == "print":
+            print(digraph)
+
+        elif argv[0] == "view":
+            visualize_digraph(digraph)
+
+        elif argv[0] == "load":
+            if len(argv) < 2:
+                print("must provide file containing digraph")
+            else:
+                digraph = load_digraph_from_file(argv[1])
+                nodes_by_name = {str(id(node)): node for node in digraph.get_nodes()}
+                edges_by_name = {str(id(edge)): edge for edge in digraph.get_edges()}
+
+        elif argv[0] == "save":
+            file = argv[1]
+            with open(file, "w") as f:
+                f.write(str(digraph))
+                f.close()
+
+        elif argv[0] == "exit":
+            break
+
+        else:
+            print(f"unknown command \"{argv[0]}\"")
+
+
+if __name__ == "__main__":
+    main()
