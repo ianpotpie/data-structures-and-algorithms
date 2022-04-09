@@ -1,15 +1,20 @@
-from typing import TypeVar, Optional
+from typing import TypeVar
 
-GraphType = TypeVar("GraphType", bound="Graph")
+GraphType = TypeVar("GraphType", bound="Graph")  # TODO: remove in future update
 
 
 class Graph:
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
-        self.nodes_by_name: dict[str, Graph.Node] = dict()
-        self.edges_by_name: dict[str, set[Graph.Edge]] = dict()
+        self.nodes: set[GraphType.Node] = set()
+        self.edges: set[GraphType.Edge] = set()
 
     def __str__(self):
+        """
+        The graph is represented with a dot format.
+
+        :return: a string representation of the graph
+        """
         s = "graph {\n"
         for node in self.get_nodes():
             s += f"\t{node}\n"
@@ -18,13 +23,34 @@ class Graph:
         s += "}"
         return s
 
-    def get_names(self) -> set[str]:
+    def __len__(self):
         """
-        Creates a set of all node name in the graph.
+        Counts the number of nodes in the graph
 
-        :return: a set of names
+        :return: the number of nodes in the graph
         """
-        return set(self.nodes_by_name.keys())
+        return len(self.nodes)
+
+    def __contains__(self, item):
+        """
+        Checks whether the graph contains a node or edge.
+
+        :param item: a node or edge
+        :return: a bool indicating whether the item is in the graph
+        """
+        if isinstance(item, GraphType.Node):
+            return item in self.nodes
+        if isinstance(item, GraphType.Edge):
+            return item in self.edges
+        raise TypeError("Item must be node or edge.")
+
+    def __iter__(self):
+        """
+        Creates an iterator over the nodes of the graph.
+
+        :return: a node iterator
+        """
+        return iter(self.nodes)
 
     def get_nodes(self) -> set[GraphType.Node]:
         """
@@ -32,7 +58,7 @@ class Graph:
 
         :return: a set of graph nodes
         """
-        return set(self.nodes_by_name.values())
+        return self.nodes.copy()
 
     def get_edges(self) -> set[GraphType.Edge]:
         """
@@ -40,119 +66,123 @@ class Graph:
 
         :return: a set of graph edges
         """
-        edges = set()
-        for name in self.nodes_by_name:
-            edges.update(self.edges_by_name[name])
-        return edges
+        return self.edges.copy()
 
-    def new_node(self, name: str, label: Optional[str] = None, **kwargs):
+    def new_node(self, **kwargs) -> GraphType.Node:
         """
         Creates a new node in the graph.
 
-        :param name: the name of the new node
-        :param label: the optional label of the node
         :param kwargs: keyword attributes of the node
-        :return: None
+        :return: the new node
         """
-        assert name not in self.nodes_by_name
-        new_node = Graph.Node(name, label, **kwargs)
-        self.nodes_by_name[name] = new_node
-        self.edges_by_name[name] = set()
+        new_node = GraphType.Node(**kwargs)
+        self.nodes.add(new_node)
+        return new_node
 
-    def new_edge(self, tail_name: str, head_name: str, label: Optional[str] = None, **kwargs):
+    def new_edge(self, tail: GraphType.Node, head: GraphType.Node, **kwargs) -> GraphType.Edge:
         """
-        Creates a new edge in the graph.
+        Creates a new edge in the graph between two existing nodes.
 
-        :param tail_name: the starting/tail node
-        :param head_name: the ending/head node
-        :param label: the optional label of the edge
+        :param tail: the starting/tail node
+        :param head: the ending/head node
         :param kwargs: keyword attributes of the new edge
-        :return: None
+        :return: the new edge
         """
-        assert tail_name in self.nodes_by_name
-        assert head_name in self.nodes_by_name
-        new_edge = Graph.Edge(tail_name, head_name, label, **kwargs)
-        self.edges_by_name[tail_name].add(new_edge)
-        self.edges_by_name[head_name].add(new_edge)
+        assert tail in self.nodes
+        assert head in self.nodes
+        new_edge = Graph.Edge(tail, head, **kwargs)
+        self.edges.add(new_edge)
+        return new_edge
 
-    def remove_name(self, name: str):
-        """
-        Removes the node with the given name and all connected edges from the graph.
-
-        :param name: the name of a node
-        :return: None
-        """
-        assert name in self.nodes_by_name
-        for edge in self.edges_by_name[name]:
-            self.remove_edge(edge)
-        del self.edges_by_name[name]
-        del self.nodes_by_name[name]
-
-    def remove_node(self, node: GraphType.Node):
+    def remove_node(self, node: GraphType.Node) -> None:
         """
         Removes the node and all connected edges from the graph.
 
         :param node: the node to remove
         :return: None
         """
-        assert node.name in self.nodes_by_name
-        assert self.nodes_by_name[node.name] is node
-        for edge in self.edges_by_name[node.name]:
+        assert node in self.nodes
+        for edge in self.edges:
             self.remove_edge(edge)
-        del self.edges_by_name[node.name]
-        del self.nodes_by_name[node.name]
+        self.nodes.remove(node)
 
-    def remove_edge(self, edge: GraphType.Edge):
+    def remove_edge(self, edge: GraphType.Edge) -> None:
         """
         Removes the edge from its nodes and the graph.
 
         :param edge: the edge to be removed
         :return: None
         """
-        assert edge in self.edges_by_name[edge.tail_name]
-        assert edge in self.edges_by_name[edge.head_name]
-        self.edges_by_name[edge.tail_name].remove(edge)
-        self.edges_by_name[edge.head_name].remove(edge)
+        assert edge in self.edges
+        edge.tail.edges.remove(edge)
+        if edge.head is not edge.tail:
+            edge.head.edges.remove(edge)
+        self.edges.remove(edge)
 
-    def get_node(self, name):
+    def adjacent(self, x: GraphType.Node, y: GraphType.Node) -> bool:
         """
-        Gets the node with the given name.
+        Checks whether two nodes in the graph are adjacent.
 
-        :param name: the name of the node
-        :return: a graph node
+        :param x: a node in the graph
+        :param y: a node in the graph
+        :return: a boolean indicating whether the two nodes are adjacent.
         """
-        return self.nodes_by_name[name]
-
-    def get_node_edges(self, name):
-        """
-        Finds all the outgoing edges connected to a node.
-
-        :param name: the name of the node
-        :return: a set of edges
-        """
-        return self.edges_by_name[name].copy()
+        assert x in self.nodes
+        assert y in self.nodes
+        is_adjacent = y in x.get_neighbors()
+        return is_adjacent
 
     class Node:
-        def __init__(self, name, label=None, **kwargs):
+        def __init__(self, **kwargs):
             self.__dict__.update(kwargs)
-            self.name: str = name
-            self.label: str = label
+            self.edges: set[GraphType.Edge] = set()
 
         def __str__(self):
-            s = f"{self.name}"
-            if self.label is not None:
+            """
+            The node is represented with dot file format.
+
+            :return: a string representation of the node
+            """
+            s = f"{id(self)}"
+            if hasattr(self, "label"):
                 s += f" [label={self.label}]"
             return s
 
+        def get_neighbors(self) -> set[GraphType.Node]:
+            """
+            Creates a set of neighbors by iterating over the edges of the node.
+
+            :return: a set of the node's neighbors
+            """
+            neighbors = set()
+            for edge in self.edges:
+                if edge.tail is self:
+                    neighbors.add(edge.head)
+                else:
+                    neighbors.add(edge.tail)
+            return neighbors
+
+        def get_edges(self) -> set[GraphType.Edge]:
+            """
+            Creates a shallow copy of the set of edges.
+
+            :return: the edges connected to the node
+            """
+            return self.edges.copy()
+
     class Edge:
-        def __init__(self, tail_name, head_name, label=None, **kwargs):
+        def __init__(self, tail: GraphType.Node, head: GraphType.Node, **kwargs):
             self.__dict__.update(kwargs)
-            self.tail_name: str = tail_name
-            self.head_name: str = head_name
-            self.label: str = label
+            self.tail: GraphType.Node = tail
+            self.head: GraphType.Node = head
 
         def __str__(self):
-            s = f"{self.tail_name} -- {self.head_name}"
-            if self.label is not None:
+            """
+            The edge is represented in the dot file format.
+
+            :return: a string representation of the edge
+            """
+            s = f"{self.tail} -- {self.head}"
+            if hasattr(self, "label"):
                 s += f" [label={self.label}]"
             return s
