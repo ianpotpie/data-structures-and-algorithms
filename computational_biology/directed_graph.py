@@ -9,6 +9,8 @@ class DiGraph:
     """
     This is a simple implementation of the digraph data structure using only the python standard library.
     The string representations are based on the DOT file format.
+
+    Note that "name" and "label" are reserved attributes for the string representation of the graph.
     """
 
     def __init__(self, **kwargs):
@@ -71,8 +73,8 @@ class DiGraph:
         if head not in self.nodes:
             raise ValueError("head is not in the current graph")
         new_edge = DiGraph.Edge(tail, head, **kwargs)
-        tail.edges.add(new_edge)
-        head.edges.add(new_edge)
+        tail.outgoing_edges.add(new_edge)
+        head.incoming_edges.add(new_edge)
         self.edges.add(new_edge)
         return new_edge
 
@@ -114,7 +116,7 @@ class DiGraph:
 
             :return: a string representation of the node
             """
-            s = f"{str(id(self))}"
+            s = self.name if hasattr(self, "name") else str(id(self))
             if hasattr(self, "label"):
                 s += f" [label={self.label}]"
             return s
@@ -190,7 +192,9 @@ class DiGraph:
 
             :return: a string representation of the edge
             """
-            s = f"{str(id(self.tail))} -> {str(id(self.head))}"
+            tail_name = self.tail.name if hasattr(self.tail, "name") else str(id(self.tail))
+            head_name = self.head.name if hasattr(self.head, "name") else str(id(self.head))
+            s = f"{tail_name} -> {head_name}"
             if hasattr(self, "label"):
                 s += f" [label={self.label}]"
             return s

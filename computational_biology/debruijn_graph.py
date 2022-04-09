@@ -31,14 +31,17 @@ def build_debruijn_graph(reads: list[str], k: int) -> DiGraph:
     :return: a directed graph of kmers
     """
     debruijn_graph = DiGraph()
+    nodes_by_name = {}
     for kmer, sources in build_kmer_spectrum(reads, k).items():
-        start = kmer[:-1]
-        end = kmer[1:]
-        if start not in debruijn_graph:
-            debruijn_graph.new_node(name=start, label=start)
-        if end not in debruijn_graph:
-            debruijn_graph.new_node(name=end, label=end)
-        debruijn_graph.new_edge(tail_name=start, head_name=end, name=kmer, label=kmer, sources=sources)
+        prefix = kmer[:-1]
+        suffix = kmer[1:]
+        if prefix not in nodes_by_name:
+            nodes_by_name[prefix] = debruijn_graph.new_node(name=prefix, label=prefix)
+        if suffix not in nodes_by_name:
+            nodes_by_name[suffix] = debruijn_graph.new_node(name=suffix, label=suffix)
+        tail = nodes_by_name[prefix]
+        head = nodes_by_name[suffix]
+        debruijn_graph.new_edge(tail=tail, head=head, name=kmer, label=kmer, sources=sources)
 
     return debruijn_graph
 
