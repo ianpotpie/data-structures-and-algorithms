@@ -28,35 +28,6 @@ class Graph:
         s += "}"
         return s
 
-    def __len__(self) -> int:
-        """
-        Counts the number of nodes in the graph
-
-        :return: the number of nodes in the graph
-        """
-        return len(self.nodes)
-
-    def __contains__(self, item: Union[GraphType.Node, GraphType.Edge]) -> bool:
-        """
-        Checks whether the graph contains a node or edge.
-
-        :param item: a node or edge
-        :return: a bool indicating whether the item is in the graph
-        """
-        if isinstance(item, Graph.Node):
-            return item in self.nodes
-        if isinstance(item, Graph.Edge):
-            return item in self.edges
-        raise TypeError("Item must be node or edge.")
-
-    def __iter__(self) -> Iterator[GraphType.Node]:
-        """
-        Creates an iterator over the nodes of the graph.
-
-        :return: a node iterator
-        """
-        return iter(self.nodes)
-
     def get_nodes(self) -> list[GraphType.Node]:
         """
         Creates a list of all nodes in the graph.
@@ -125,19 +96,6 @@ class Graph:
         if edge.head is not edge.tail:
             edge.head.edges.remove(edge)
         self.edges.remove(edge)
-
-    def adjacent(self, x: GraphType.Node, y: GraphType.Node) -> bool:
-        """
-        Checks whether two nodes in the graph are adjacent.
-
-        :param x: a node in the graph
-        :param y: a node in the graph
-        :return: a boolean indicating whether the two nodes are adjacent.
-        """
-        assert x in self.nodes
-        assert y in self.nodes
-        is_adjacent = y in x.get_neighbors()
-        return is_adjacent
 
     class Node:
         def __init__(self, **kwargs):
@@ -238,24 +196,24 @@ def main():
     nodes_by_name = {}
     edges_by_name = {}
 
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument("-l", "--label")
     parser.add_argument("-n", "--name")
 
-    print("~Graph Builder RPL~")
+    print("~Graph Builder REPL~")
     print("-------------------")
     print("Commands:")
-    print("1. add-node")
-    print("2. add-edge")
-    print("3. del-node")
-    print("4. del-edge")
+    print("1. add-node [-n, --name] [-l, --label]")
+    print("2. add-edge [-n, --name] [-l, --label]")
+    print("3. del-node [name]")
+    print("4. del-edge [name]")
     print("5. node-dict")
     print("6. edge-dict")
     print("7. reset-graph")
     print("8. print-graph")
-    print("9. render")
-    print("10. load")
-    print("11. save")
+    print("9. view")
+    print("10. load [filepath]")
+    print("11. save [filepath]")
     print("12. exit")
     print("-------------------")
 
@@ -266,10 +224,11 @@ def main():
             if namespace.name in nodes_by_name:
                 print(f"a node with the name \"{namespace.name}\" already exists")
             else:
+                print(argv)
                 new_node = graph.new_node()
-                name = argv.pop() if (namespace.name is None and len(argv) > 0) else namespace.name
+                name = argv.pop(0) if (namespace.name is None and len(argv) > 0) else namespace.name
                 new_node.name = str(id(new_node)) if name is None else name
-                label = argv.pop() if (namespace.label is None and len(argv) > 0) else namespace.label
+                label = argv.pop(0) if (namespace.label is None and len(argv) > 0) else namespace.label
                 if label is not None:
                     new_node.label = label
                 nodes_by_name[new_node.name] = new_node
@@ -336,8 +295,8 @@ def main():
                 print("must provide file containing graph")
             else:
                 graph = load_graph_from_file(argv[1])
-                nodes_by_name = {node.name: node for node in graph.get_nodes()}
-                edges_by_name = {edge.name: edge for edge in graph.get_edges()}
+                nodes_by_name = {str(id(node)): node for node in graph.get_nodes()}
+                edges_by_name = {str(id(edge)): edge for edge in graph.get_edges()}
 
         elif argv[0] == "save":
             file = argv[1]
