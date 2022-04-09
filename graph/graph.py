@@ -1,5 +1,5 @@
 import argparse
-from typing import TypeVar, Union, Iterator
+from typing import TypeVar
 import graphviz
 import pydot
 
